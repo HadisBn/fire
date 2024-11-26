@@ -5,7 +5,10 @@ import rasterio
 from torch.utils.data import Dataset
 import torch
 import numpy as np
-from torch.utils.data.dataset import T_co
+from typing import TypeVar
+
+T_co = TypeVar('T_co', covariant=True)
+
 import glob
 import warnings
 from .utils import get_means_stds_missing_values, get_indices_of_degree_features
@@ -209,40 +212,22 @@ class FireSpreadDataset(Dataset):
                     "n_leading_observations_test_adjustment must be greater than or equal to 1. Value 1 is used for having a single observation as input.")
 
     def read_list_of_images(self):
-        """_summary_ Create an inventory of all images in the dataset.
-
-        Returns:
-            _type_: _description_ Returns a dictionary mapping integer years to dictionaries. 
-            These dictionaries map names of fires that happened within the respective year to either
-            a) the corresponding list of image files (in case hdf5 files are not used) or
-            b) the individual hdf5 file for each fire.
-        """
         imgs_per_fire = {}
         for fire_year in self.included_fire_years:
+            print(f"Processing year: {fire_year}")
+            year_path = f"{self.data_dir}/{fire_year}"  # Path to the year's directory
+            print(f"Looking for files in: {year_path}")
+            fires_in_year = glob.glob(f"{year_path}/*.hdf5")  # Find all .hdf5 files
+            print(f"Found files for year {fire_year}: {fires_in_year}")
             imgs_per_fire[fire_year] = {}
-
-            if not self.load_from_hdf5:
-                fires_in_year = glob.glob(f"{self.data_dir}/{fire_year}/*/")
-                fires_in_year.sort()
-                for fire_dir_path in fires_in_year:
-                    fire_name = fire_dir_path.split("/")[-2]
-                    fire_img_paths = glob.glob(f"{fire_dir_path}/*.tif")
-                    fire_img_paths.sort()
-                    
-                    imgs_per_fire[fire_year][fire_name] = fire_img_paths
-
-                    if len(fire_img_paths) == 0:
-                        warnings.warn(f"In dataset preparation: Fire {fire_year}: {fire_name} contains no images.",
-                                      RuntimeWarning)
-            else:
-                fires_in_year = glob.glob(
-                    f"{self.data_dir}/{fire_year}/*.hdf5")
-                fires_in_year.sort()
-                for fire_hdf5 in fires_in_year:
-                    fire_name = Path(fire_hdf5).stem
-                    imgs_per_fire[fire_year][fire_name] = [fire_hdf5]
-
+            fires_in_year.sort()
+            for fire_hdf5 in fires_in_year:
+                fire_name = Path(fire_hdf5).stem
+                imgs_per_fire[fire_year][fire_name] = [fire_hdf5]
         return imgs_per_fire
+
+
+
 
     def compute_datapoints_per_fire(self):
         """_summary_ Compute how many data points each fire contains. This is important for mapping a dataset index to a specific fire.
@@ -642,3 +627,5 @@ class FireSpreadDataset(Dataset):
                 # Turn active fire detection time from hhmm to hh.
                 x[:, -1, ...] = np.floor_divide(x[:, -1, ...], 100)
                 yield year, fire_name, img_dates, lnglat, x
+
+

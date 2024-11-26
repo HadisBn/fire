@@ -4,17 +4,27 @@ import numpy as np
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 import glob
-from .FireSpreadDataset import FireSpreadDataset
+from src.dataloader.FireSpreadDataset import FireSpreadDataset
+
 from typing import List, Optional, Union
 
 
 class FireSpreadDataModule(LightningDataModule):
 
-    def __init__(self, data_dir: str, batch_size: int, n_leading_observations: int, n_leading_observations_test_adjustment: int,
+    def __init__(self, 
+                 batch_size: int, 
+                 n_leading_observations: int, 
+                 n_leading_observations_test_adjustment: int,
                  crop_side_length: int,
-                 load_from_hdf5: bool, num_workers: int, remove_duplicate_features: bool,
-                 features_to_keep: Union[Optional[List[int]], str] = None, return_doy: bool = False,
-                 data_fold_id: int = 0, *args, **kwargs):
+                 load_from_hdf5: bool, 
+                 num_workers: int, 
+                 remove_duplicate_features: bool,
+                 data_dir: str = "/Users/hbanafsh/Downloads/HDF5Dataset",
+                 features_to_keep: Union[Optional[List[int]], str] = None, 
+                 return_doy: bool = False,
+                 data_fold_id: int = 0, 
+                 *args, 
+                 **kwargs):
         """_summary_ Data module for loading the WildfireSpreadTS dataset.
 
         Args:
@@ -52,34 +62,40 @@ class FireSpreadDataModule(LightningDataModule):
         self.train_dataset, self.val_dataset, self.test_dataset = None, None, None
 
     def setup(self, stage: str):
-        train_years, val_years, test_years = self.split_fires(
-            self.data_fold_id)
+        train_years, val_years, test_years = self.split_fires(self.data_fold_id)
         self.train_dataset = FireSpreadDataset(data_dir=self.data_dir, included_fire_years=train_years,
-                                               n_leading_observations=self.n_leading_observations,
-                                               n_leading_observations_test_adjustment=None,
-                                               crop_side_length=self.crop_side_length,
-                                               load_from_hdf5=self.load_from_hdf5, is_train=True,
-                                               remove_duplicate_features=self.remove_duplicate_features,
-                                               features_to_keep=self.features_to_keep, return_doy=self.return_doy,
-                                               stats_years=train_years)
-        self.val_dataset = FireSpreadDataset(data_dir=self.data_dir, included_fire_years=val_years,
-                                             n_leading_observations=self.n_leading_observations,
-                                             n_leading_observations_test_adjustment=None,
-                                             crop_side_length=self.crop_side_length,
-                                             load_from_hdf5=self.load_from_hdf5, is_train=True,
-                                             remove_duplicate_features=self.remove_duplicate_features,
-                                             features_to_keep=self.features_to_keep, return_doy=self.return_doy,
-                                             stats_years=train_years)
-        self.test_dataset = FireSpreadDataset(data_dir=self.data_dir, included_fire_years=test_years,
-                                              n_leading_observations=self.n_leading_observations,
-                                              n_leading_observations_test_adjustment=self.n_leading_observations_test_adjustment,
-                                              crop_side_length=self.crop_side_length,
-                                              load_from_hdf5=self.load_from_hdf5, is_train=False,
-                                              remove_duplicate_features=self.remove_duplicate_features,
-                                              features_to_keep=self.features_to_keep, return_doy=self.return_doy,
-                                              stats_years=train_years)
+                                            n_leading_observations=self.n_leading_observations,
+                                            n_leading_observations_test_adjustment=None,
+                                            crop_side_length=self.crop_side_length,
+                                            load_from_hdf5=self.load_from_hdf5, is_train=True,
+                                            remove_duplicate_features=self.remove_duplicate_features,
+                                            features_to_keep=self.features_to_keep, return_doy=self.return_doy,
+                                            stats_years=train_years)
+        print(f"Training dataset size: {len(self.train_dataset)}")
 
+        self.val_dataset = FireSpreadDataset(data_dir=self.data_dir, included_fire_years=val_years,
+                                            n_leading_observations=self.n_leading_observations,
+                                            n_leading_observations_test_adjustment=None,
+                                            crop_side_length=self.crop_side_length,
+                                            load_from_hdf5=self.load_from_hdf5, is_train=True,
+                                            remove_duplicate_features=self.remove_duplicate_features,
+                                            features_to_keep=self.features_to_keep, return_doy=self.return_doy,
+                                            stats_years=train_years)
+        print(f"Validation dataset size: {len(self.val_dataset)}")
+
+        self.test_dataset = FireSpreadDataset(data_dir=self.data_dir, included_fire_years=test_years,
+                                            n_leading_observations=self.n_leading_observations,
+                                            n_leading_observations_test_adjustment=self.n_leading_observations_test_adjustment,
+                                            crop_side_length=self.crop_side_length,
+                                            load_from_hdf5=self.load_from_hdf5, is_train=False,
+                                            remove_duplicate_features=self.remove_duplicate_features,
+                                            features_to_keep=self.features_to_keep, return_doy=self.return_doy,
+                                            stats_years=train_years)
+        print(f"Test dataset size: {len(self.test_dataset)}")
+
+    
     def train_dataloader(self):
+        print(f"Number of samples in train_dataset: {len(self.train_dataset)}")
         return DataLoader(self.train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers, pin_memory=True)
 
     def val_dataloader(self):
@@ -123,4 +139,28 @@ class FireSpreadDataModule(LightningDataModule):
             f"Using the following dataset split:\nTrain years: {train_years}, Val years: {val_years}, Test years: {test_years}")
 
         return train_years, val_years, test_years
+
+if __name__ == "__main__":
+    print("Initializing FireSpreadDataModule...")
+    
+    # Example parameters, modify based on your actual setup
+    data_module = FireSpreadDataModule(
+        batch_size=4,  # Set a valid batch size
+        n_leading_observations=3,
+        n_leading_observations_test_adjustment=3,
+        crop_side_length=32,
+        load_from_hdf5=True,
+        num_workers=0,
+        remove_duplicate_features=True,
+        data_dir="/Users/hbanafsh/Downloads/HDF5Dataset"
+    )
+    
+    print("Setting up datasets...")
+    data_module.setup(stage="fit")
+    
+    print("Train DataLoader:")
+    train_loader = data_module.train_dataloader()
+    for batch in train_loader:
+        print(f"Batch shape: {[b.shape for b in batch]}")
+        break  # Print only the first batch to verify
 

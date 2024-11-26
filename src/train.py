@@ -1,16 +1,17 @@
 from pytorch_lightning.utilities import rank_zero_only
 import torch
-from dataloader.FireSpreadDataModule import FireSpreadDataModule
 from pytorch_lightning.cli import LightningCLI
-from models import SMPModel, BaseModel, ConvLSTMLightning, LogisticRegression  # noqa
-from models import BaseModel
+from src.models import SMPModel, BaseModel, ConvLSTMLightning, LogisticRegression
+from src.models import BaseModel
 import wandb
 import os
 
-from dataloader.FireSpreadDataset import FireSpreadDataset
-from dataloader.utils import get_means_stds_missing_values
+from src.dataloader.FireSpreadDataModule import FireSpreadDataModule
+from src.dataloader.FireSpreadDataset import FireSpreadDataset
+from src.dataloader.utils import get_means_stds_missing_values
 
-os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+
+os.environ['HDF5_USE_FILE_LOCKING'] = 'TRUE'
 torch.set_float32_matmul_precision('high')
 
 
@@ -60,15 +61,15 @@ class MyLightningCLI(LightningCLI):
         self.wandb_setup()
 
     @rank_zero_only
+    @rank_zero_only
     def wandb_setup(self):
         """
         Save the config used by LightningCLI to disk, then save that file to wandb.
-        Using wandb.config adds some strange formating that means we'd have to do some 
-        processing to be able to use it again as CLI input.
-
-        Also define min and max metrics in wandb, because otherwise it just reports the 
-        last known values, which is not what we want.
         """
+        if wandb.run is None:
+            print("WandB is not initialized. Skipping WandB setup.")
+            return
+
         config_file_name = os.path.join(wandb.run.dir, "cli_config.yaml")
 
         cfg_string = self.parser.dump(self.config, skip_none=False)
@@ -79,6 +80,7 @@ class MyLightningCLI(LightningCLI):
         wandb.define_metric("val_loss", summary="min")
         wandb.define_metric("train_f1_epoch", summary="max")
         wandb.define_metric("val_f1", summary="max")
+
 
 
 def main():
